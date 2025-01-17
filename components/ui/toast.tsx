@@ -1,114 +1,82 @@
 'use client'
 
-import { useEffect, useState, createContext, useContext } from 'react'
+import * as React from 'react'
+import * as ToastPrimitives from '@radix-ui/react-toast'
+import { cn } from '@/lib/utils'
 
-interface ToastContextType {
-  show: (message: string, type: 'success' | 'error') => void
-}
+const ToastProvider = ToastPrimitives.Provider
 
-const ToastContext = createContext<ToastContextType | null>(null)
+const ToastViewport = React.forwardRef<
+  React.ElementRef<typeof ToastPrimitives.Viewport>,
+  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Viewport>
+>(({ className, ...props }, ref) => (
+  <ToastPrimitives.Viewport
+    ref={ref}
+    className={cn(
+      'fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]',
+      className
+    )}
+    {...props}
+  />
+))
+ToastViewport.displayName = ToastPrimitives.Viewport.displayName
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const { show, ToastContainer } = useToast()
-
+const Toast = React.forwardRef<
+  React.ElementRef<typeof ToastPrimitives.Root>,
+  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> & {
+    variant?: 'default' | 'destructive'
+  }
+>(({ className, variant = 'default', ...props }, ref) => {
   return (
-    <ToastContext.Provider value={{ show }}>
-      {children}
-      <ToastContainer />
-    </ToastContext.Provider>
+    <ToastPrimitives.Root
+      ref={ref}
+      className={cn(
+        'group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border border-white/10 p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full',
+        variant === 'default' && 'bg-gray-900/95 text-white',
+        variant === 'destructive' &&
+          'destructive group border-red-500 bg-red-600 text-white',
+        className
+      )}
+      {...props}
+    />
   )
-}
+})
+Toast.displayName = ToastPrimitives.Root.displayName
 
-export function useToastContext() {
-  const context = useContext(ToastContext)
-  if (!context) {
-    throw new Error('useToastContext must be used within a ToastProvider')
-  }
-  return context
-}
+const ToastTitle = React.forwardRef<
+  React.ElementRef<typeof ToastPrimitives.Title>,
+  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Title>
+>(({ className, ...props }, ref) => (
+  <ToastPrimitives.Title
+    ref={ref}
+    className={cn('text-sm font-semibold', className)}
+    {...props}
+  />
+))
+ToastTitle.displayName = ToastPrimitives.Title.displayName
 
-interface Toast {
-  id: string
-  message: string
-  type: 'success' | 'error'
-}
+const ToastDescription = React.forwardRef<
+  React.ElementRef<typeof ToastPrimitives.Description>,
+  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Description>
+>(({ className, ...props }, ref) => (
+  <ToastPrimitives.Description
+    ref={ref}
+    className={cn('text-sm opacity-90', className)}
+    {...props}
+  />
+))
+ToastDescription.displayName = ToastPrimitives.Description.displayName
 
-interface ToastProps {
-  message: string
-  type: 'success' | 'error'
-  onClose: () => void
-}
+type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>
 
-export function Toast({ message, type, onClose }: ToastProps) {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose()
-    }, 3000)
+type ToastActionElement = React.ReactElement<typeof ToastPrimitives.Action>
 
-    return () => clearTimeout(timer)
-  }, [onClose])
-
-  return (
-    <div
-      className={`
-        fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg
-        flex items-center gap-2 text-sm
-        animate-slide-up
-        -webkit-backdrop-filter: blur(8px)
-        backdrop-filter: blur(8px)
-        ${type === 'success' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}
-      `}
-      role="alert"
-    >
-      <span>{message}</span>
-      <button
-        onClick={onClose}
-        className="p-1 hover:bg-white/10 rounded-full transition-colors"
-        aria-label="Close notification"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
-    </div>
-  )
-}
-
-export function useToast() {
-  const [toasts, setToasts] = useState<Toast[]>([])
-
-  const show = (message: string, type: 'success' | 'error') => {
-    const id = Math.random().toString(36).substring(7)
-    setToasts(prev => [...prev, { id, message, type }])
-  }
-
-  const close = (id: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id))
-  }
-
-  const ToastContainer = () => (
-    <div className="fixed bottom-4 right-4 space-y-2">
-      {toasts.map(toast => (
-        <Toast
-          key={toast.id}
-          message={toast.message}
-          type={toast.type}
-          onClose={() => close(toast.id)}
-        />
-      ))}
-    </div>
-  )
-
-  return { show, ToastContainer }
+export {
+  type ToastProps,
+  type ToastActionElement,
+  ToastProvider,
+  ToastViewport,
+  Toast,
+  ToastTitle,
+  ToastDescription,
 }

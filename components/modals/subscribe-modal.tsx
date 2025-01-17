@@ -22,7 +22,6 @@ export function SubscribeModal({ isOpen, onClose, onSubscribe }: SubscribeModalP
     if (!name || !agreed) return
 
     setLoading(true)
-    // Demo subscription
     setTimeout(() => {
       onSubscribe()
       setLoading(false)
@@ -40,25 +39,44 @@ export function SubscribeModal({ isOpen, onClose, onSubscribe }: SubscribeModalP
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Subscription Details */}
         <div className="space-y-4">
-          <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <h3 className="text-lg font-medium text-amber-500">
-              Monthly Subscription
-            </h3>
-            <p className="mt-2 text-white/60">
-              Join our exclusive wellness community for just 550 AED per month
-            </p>
-            <ul className="mt-4 space-y-2 text-sm text-white/80">
-              <li>✓ Access to all morning parties</li>
-              <li>✓ Book up to 3 slots in advance</li>
-              <li>✓ Cancel or reschedule anytime</li>
-              <li>✓ Member-only experiences</li>
-            </ul>
+          <div className="relative p-6 rounded-lg bg-white/20 backdrop-blur-md border border-white/30 shadow-xl overflow-hidden">
+            {/* Geometric Accents */}
+            <div className="absolute -right-16 -top-16 w-32 h-32 rounded-full bg-miami-sky/20 blur-xl" />
+            <div className="absolute -left-16 -bottom-16 w-32 h-32 rounded-full bg-miami-coral/20 blur-xl" />
+            
+            {/* Content */}
+            <div className="relative">
+              <h3 className="text-xl font-medium tracking-wide text-miami-coral-dark drop-shadow-sm">
+                Monthly Subscription
+              </h3>
+              <p className="mt-2 text-miami-coral-dark/90 font-medium">
+                Join our exclusive wellness community for just 550 AED per month
+              </p>
+              <ul className="mt-4 space-y-2">
+                <li className="flex items-center space-x-2">
+                  <span className="text-miami-coral-dark">✓</span>
+                  <span className="text-miami-coral-dark/90 font-medium">Access to all morning parties</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-miami-coral-dark">✓</span>
+                  <span className="text-miami-coral-dark/90 font-medium">Book up to 3 slots in advance</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-miami-coral-dark">✓</span>
+                  <span className="text-miami-coral-dark/90 font-medium">Cancel or reschedule anytime</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-miami-coral-dark">✓</span>
+                  <span className="text-miami-coral-dark/90 font-medium">Member-only experiences</span>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 
         {/* Name Input */}
         <div>
-          <label className="block text-sm font-medium text-white mb-2">
+          <label className="block text-sm font-medium text-miami-coral-dark/90 mb-2 drop-shadow-sm">
             Your Name
           </label>
           <Input
@@ -66,35 +84,38 @@ export function SubscribeModal({ isOpen, onClose, onSubscribe }: SubscribeModalP
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Enter your name"
-            className="w-full"
+            className="bg-white/20 border-white/30 focus:border-miami-coral/40 text-miami-coral-dark placeholder:text-miami-coral-dark/40 font-medium"
             required
           />
         </div>
 
         {/* Fair Use Policy */}
         <div className="space-y-4">
-          <div className="flex items-start space-x-3">
+          <div className="flex items-start space-x-4 bg-white/10 rounded-lg p-4">
             <Checkbox
               id="policy"
               checked={agreed}
-              onCheckedChange={(checked) => setAgreed(checked as boolean)}
+              onCheckedChange={setAgreed}
+              className="mt-1"
             />
-            <label htmlFor="policy" className="text-sm text-white/60">
-              I agree to the fair use policy, including:
-            </label>
+            <div className="space-y-3">
+              <label htmlFor="policy" className="block text-sm text-miami-coral-dark/90 font-medium">
+                I agree to the fair use policy, including:
+              </label>
+              <ul className="text-sm text-miami-coral-dark/80 list-disc list-inside space-y-1.5 font-medium">
+                <li>Maximum 3 advance bookings at a time</li>
+                <li>24-hour cancellation notice required</li>
+                <li>Recurring monthly subscription of 550 AED</li>
+                <li>Seasonal schedule variations may apply</li>
+              </ul>
+            </div>
           </div>
-          <ul className="text-sm text-white/60 list-disc list-inside ml-6 space-y-1">
-            <li>Maximum 3 advance bookings at a time</li>
-            <li>24-hour cancellation notice required</li>
-            <li>Recurring monthly subscription of 550 AED</li>
-            <li>Seasonal schedule variations may apply</li>
-          </ul>
         </div>
 
         {/* Subscribe Button */}
         <Button
           type="submit"
-          className="w-full bg-amber-500 hover:bg-amber-600 text-black"
+          className="w-full bg-gradient-to-r from-miami-coral to-miami-coral-dark hover:opacity-90 text-white font-medium tracking-wide shadow-lg"
           disabled={!name || !agreed || loading}
         >
           {loading ? 'Processing...' : 'Subscribe Now - 550 AED/month'}

@@ -2,198 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
-@import 'react-day-picker/dist/style.css';
-
-/* Calendar overrides */
-.rdp {
-  --rdp-cell-size: 40px;
-  --rdp-accent-color: rgba(255, 255, 255, 0.1);
-  --rdp-background-color: transparent;
-  --rdp-accent-color-dark: rgba(255, 255, 255, 0.2);
-  --rdp-background-color-dark: transparent;
-  --rdp-outline: 2px solid var(--rdp-accent-color);
-  --rdp-outline-selected: 2px solid rgba(255, 255, 255, 0.5);
-  margin: 0;
-}
-
-.rdp-day_selected:not([disabled]),
-.rdp-day_selected:focus:not([disabled]),
-.rdp-day_selected:active:not([disabled]),
-.rdp-day_selected:hover:not([disabled]) {
-  background-color: var(--rdp-accent-color);
-  color: white;
-}
-
-.rdp-button:hover:not([disabled]):not(.rdp-day_selected) {
-  background-color: var(--rdp-accent-color);
-  color: white;
-}
-
-@layer utilities {
-  .perspective {
-    perspective: 1000px;
-  }
-
-  .transform-style-3d {
-    transform-style: preserve-3d;
-  }
-
-  .backface-hidden {
-    backface-visibility: hidden;
-  }
-
-  .rotate-y-180 {
-    transform: rotateY(180deg);
+@layer base {
+  :root {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
   }
 }
 
-:root {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-}
-
-body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-feature-settings: "rlig" 1, "calt" 1;
-}
-
-.page-container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(to bottom right, #1a1a2e, #16213e);
-}
-
-.admin-container {
-  min-height: 100vh;
-  width: 100%;
-  background: linear-gradient(to bottom right, rgb(17, 24, 39), rgb(31, 41, 55));
-}
-
-.content-wrapper {
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-}
-
-.card {
-  background-color: rgba(255, 255, 255, 0.05);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.button-base {
-  background-color: rgba(255, 255, 255, 0.1);
-  transition: background-color 0.2s;
-  border-radius: 0.5rem;
-  padding: 0.5rem 1rem;
-}
-
-.button-base:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-.button-base:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.input-field {
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 0.5rem;
-  padding: 0.5rem 1rem;
-}
-
-.input-field:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
-}
-
-.icon-wrapper {
-  position: relative;
-  z-index: 10;
-  cursor: pointer;
-}
-
-.wave {
-  position: absolute;
-  inset: 0;
-  opacity: 0.3;
-  background: linear-gradient(45deg, #2196f3, #e91e63);
-  animation: wave 8s ease-in-out infinite;
-}
-
-@keyframes wave {
-  0%, 100% {
-    clip-path: polygon(
-      0% 45%,
-      16% 44%,
-      33% 50%,
-      54% 60%,
-      70% 61%,
-      84% 59%,
-      100% 52%,
-      100% 100%,
-      0% 100%
-    );
+@layer base {
+  body {
+    @apply bg-gray-900 text-white;
   }
-  50% {
-    clip-path: polygon(
-      0% 60%,
-      15% 65%,
-      34% 66%,
-      51% 62%,
-      67% 50%,
-      84% 45%,
-      100% 46%,
-      100% 100%,
-      0% 100%
-    );
+}
+
+@keyframes enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform: translate3d(var(--tw-enter-translate-x, 0), var(--tw-enter-translate-y, 0), 0) scale3d(var(--tw-enter-scale, 1), var(--tw-enter-scale, 1), var(--tw-enter-scale, 1)) rotate(var(--tw-enter-rotate, 0));
+  }
+}
+
+@keyframes exit {
+  to {
+    opacity: var(--tw-exit-opacity, 1);
+    transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0) scale3d(var(--tw-exit-scale, 1), var(--tw-exit-scale, 1), var(--tw-exit-scale, 1)) rotate(var(--tw-exit-rotate, 0));
   }
 }
 
 @keyframes fade-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slide-in-from-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-out-to-right {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.animate-in {
+  animation: enter 150ms ease-out;
+}
+
+.animate-out {
+  animation: exit 150ms ease-in;
 }
 
 .fade-in {
-  animation: fade-in 0.5s ease-out forwards;
-  opacity: 0;
+  animation: fade-in 200ms ease-out;
 }
 
-.delay-1 { animation-delay: 0.1s; }
-.delay-2 { animation-delay: 0.2s; }
-.delay-3 { animation-delay: 0.3s; }
-.delay-4 { animation-delay: 0.4s; }
-.delay-5 { animation-delay: 0.5s; }
-
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(1rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.fade-out {
+  animation: fade-out 200ms ease-in;
 }
 
-.animate-slide-up {
-  animation: slide-up 0.2s ease-out;
+.slide-in-from-right {
+  animation: slide-in-from-right 200ms ease-out;
+}
+
+.slide-out-to-right {
+  animation: slide-out-to-right 200ms ease-in;
 }

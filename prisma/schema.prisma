@@ -11,65 +11,161 @@ datasource db {
 enum UserRole {
   USER
   STAFF
+  ADMIN
 }
 
-enum MembershipType {
-  NONE      // Just registered
-  DAY_PASS  // Single day access
-  WEEK_1    // 1 week membership
-  WEEK_2    // 2 weeks membership
-  WEEK_4    // 4 weeks membership
-  WEEK_12   // Full season
-}
-
-model User {
-  id              String         @id @default(cuid())
-  name            String
-  email           String         @unique
-  password        String
-  role            UserRole       @default(USER)
-  emailVerified   Boolean        @default(false)  // Keep but don't require
-  verifyToken     String?        @unique          // Keep but don't require
-  membershipType  MembershipType @default(NONE)
-  membershipStart DateTime?
-  membershipEnd   DateTime?
-  bookingsRemaining Int          @default(0)      // Number of advance bookings allowed
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  bookings        Booking[]
-}
-
-model Booking {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  date      DateTime
-  timeSlot  TimeSlot @relation(fields: [slotId], references: [id])
-  slotId    String
-  status    BookingStatus @default(PENDING_PAYMENT)
-  checkedIn Boolean  @default(false)    // For QR code validation
-  qrCode    String?  @unique           // Generated QR code for check-in
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model TimeSlot {
-  id          String    @id @default(cuid())
-  date        DateTime
-  startTime   DateTime
-  endTime     DateTime
-  capacity    Int       @default(100)
-  bookings    Booking[]
-  isWeekend   Boolean
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@unique([date, startTime])
+enum MembershipStatus {
+  NON_MEMBER
+  MEMBER
+  PREMIUM
 }
 
 enum BookingStatus {
-  PENDING_PAYMENT  // Booked but needs payment
-  CONFIRMED       // Paid and confirmed
-  CANCELLED      // Cancelled by user/staff
-  EXPIRED       // Past date
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
+enum EventType {
+  MORNING_PARTY
+  WATER_BAR        // Always a service, includes all drinks
+  YOGA
+  MEDITATION
+  ICE_BATH
+  FUNCTIONAL_FITNESS
+  REFLEXOLOGY
+  SOBER_RAVE
+}
+
+enum PackageType {
+  YACHT_ONLY     // Base yacht booking
+  YACHT_DRINKS   // Yacht + water bar service
+  YACHT_FULL     // All inclusive
+}
+
+model User {
+  id                String           @id @default(cuid())
+  name              String
+  email             String           @unique
+  password          String
+  role              UserRole         @default(USER)
+  membershipStatus  MembershipStatus @default(NON_MEMBER)
+  membershipStart   DateTime?
+  membershipEnd     DateTime?
+  emailVerified     Boolean          @default(false)
+  verifyToken       String?          @unique
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  bookings          Booking[]
+}
+
+model Event {
+  id                String          @id @default(cuid())
+  type              EventType
+  name              String
+  description       String
+  duration          Int            // in minutes
+  capacity          Int
+  memberPrice       Float          // Free (0) for water bar if member
+  nonMemberPrice    Float          // Standard pricing
+  schedules         EventSchedule[]
+  bookings          BookingEvent[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+model EventSchedule {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  date      DateTime
+  startTime DateTime
+  endTime   DateTime
+  capacity  Int      // Override event capacity if needed
+  bookings  BookingEvent[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, date, startTime])
+}
+
+model Package {
+  id                String    @id @default(cuid())
+  type              PackageType
+  name              String
+  description       String
+  memberPrice       Float
+  nonMemberPrice    Float
+  drinks            PackageDrink[]
+  bookings         BookingPackage[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Drink {
+  id            String         @id @default(cuid())
+  name          String
+  description   String
+  packages      PackageDrink[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model PackageDrink {
+  id            String    @id @default(cuid())
+  packageId     String
+  package       Package   @relation(fields: [packageId], references: [id])
+  drinkId       String
+  drink         Drink     @relation(fields: [drinkId], references: [id])
+  quantity      Int       // Number of this drink in the package
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([packageId, drinkId])
+}
+
+model Booking {
+  id                    String           @id @default(cuid())
+  userId                String
+  user                  User             @relation(fields: [userId], references: [id])
+  date                  DateTime
+  membershipAtBooking   MembershipStatus // Snapshot for audit
+  status                BookingStatus    @default(PENDING_PAYMENT)
+  checkedIn             Boolean          @default(false)
+  qrCode                String?          @unique
+  finalPrice            Float            // Total price after membership discounts
+  paidAmount            Float            @default(0)
+  events                BookingEvent[]
+  packages              BookingPackage[]
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+}
+
+model BookingEvent {
+  id              String        @id @default(cuid())
+  bookingId       String
+  booking         Booking       @relation(fields: [bookingId], references: [id])
+  eventId         String
+  event           Event         @relation(fields: [eventId], references: [id])
+  scheduleId      String
+  schedule        EventSchedule @relation(fields: [scheduleId], references: [id])
+  finalPrice      Float         // Price at time of booking (member/non-member)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([bookingId, eventId, scheduleId])
+}
+
+model BookingPackage {
+  id          String    @id @default(cuid())
+  bookingId   String
+  booking     Booking   @relation(fields: [bookingId], references: [id])
+  packageId   String
+  package     Package   @relation(fields: [packageId], references: [id])
+  finalPrice  Float     // Price at time of booking (member/non-member)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([bookingId, packageId])
 }

@@ -1,39 +1,46 @@
 const { PrismaClient } = require('@prisma/client')
 
-async function listUsers() {
+async function main() {
   const prisma = new PrismaClient()
-  
+
   try {
-    console.log('🔍 Fetching all users from database...')
-    
     const users = await prisma.user.findMany({
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
+        membershipStatus: true,
         emailVerified: true,
         createdAt: true
+      },
+      orderBy: {
+        createdAt: 'desc'
       }
     })
 
-    console.log('\n📋 Registered Users:')
-    users.forEach(user => {
-      console.log('\n👤 User:', {
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        verified: user.emailVerified,
-        registered: user.createdAt.toLocaleString()
-      })
-    })
+    console.log('\nUsers:', users.map(user => ({
+      ...user,
+      createdAt: user.createdAt.toLocaleString()
+    })))
     
-    console.log(`\n✅ Total users: ${users.length}`)
+    console.log('\nTotal users:', users.length)
+
+    // Print stats
+    const stats = {
+      staff: users.filter(u => u.role === 'STAFF').length,
+      members: users.filter(u => u.membershipStatus === 'MEMBER').length,
+      premium: users.filter(u => u.membershipStatus === 'PREMIUM').length,
+      verified: users.filter(u => u.emailVerified).length
+    }
+
+    console.log('\nStats:', stats)
+
   } catch (error) {
-    console.error('❌ Error fetching users:', error)
+    console.error('Error listing users:', error)
   } finally {
     await prisma.$disconnect()
   }
 }
 
-listUsers()
+main().catch(console.error)

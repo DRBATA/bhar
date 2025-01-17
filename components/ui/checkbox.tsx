@@ -1,28 +1,46 @@
 'use client'
 
 import * as React from 'react'
-import * as CheckboxPrimitive from '@radix-ui/react-checkbox'
-import { Check } from 'lucide-react'
-
 import { cn } from '@/lib/utils'
 
-const Checkbox = React.forwardRef<
-  React.ElementRef<typeof CheckboxPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>
->(({ className, ...props }, ref) => (
-  <CheckboxPrimitive.Root
-    ref={ref}
-    className={cn(
-      'peer h-4 w-4 shrink-0 rounded-sm border border-white/20 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-amber-500 data-[state=checked]:text-black',
-      className
-    )}
-    {...props}
-  >
-    <CheckboxPrimitive.Indicator className={cn('flex items-center justify-center text-current')}>
-      <Check className="h-4 w-4" />
-    </CheckboxPrimitive.Indicator>
-  </CheckboxPrimitive.Root>
-))
-Checkbox.displayName = CheckboxPrimitive.Root.displayName
+interface CheckboxProps {
+  id?: string
+  checked?: boolean
+  onCheckedChange?: (checked: boolean) => void
+  className?: string
+}
 
-export { Checkbox }
+export function Checkbox({ 
+  id, 
+  checked = false, 
+  onCheckedChange,
+  className 
+}: CheckboxProps) {
+  return (
+    <div 
+      onClick={() => onCheckedChange?.(!checked)}
+      className={cn(
+        "relative w-6 h-6 rounded border-2 cursor-pointer shadow-md",
+        "bg-white/40 hover:bg-white/50 transition-colors",
+        checked ? "border-miami-coral bg-miami-coral" : "border-miami-coral-dark/50",
+        className
+      )}
+    >
+      {checked && (
+        <svg 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          className="absolute inset-0 w-full h-full p-1 text-white"
+        >
+          <path 
+            d="M20 6L9 17L4 12" 
+            stroke="currentColor" 
+            strokeWidth="3" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+    </div>
+  )
+}

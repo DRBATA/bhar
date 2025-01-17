@@ -1,6 +1,14 @@
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
-import { ToastProvider } from "../components/ui/toast"
-import { AuthProvider } from "@/lib/auth-context"
+import { Toaster } from '@/components/ui/toaster'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: 'Neon',
+  description: 'Premium water bar service',
+}
 
 export default function RootLayout({
   children,
@@ -9,12 +17,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
-        <AuthProvider>
-          <ToastProvider>
-            {children}
-          </ToastProvider>
-        </AuthProvider>
+      <body className={inter.className}>
+        {children}
+        <Toaster />
       </body>
     </html>
   )

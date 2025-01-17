@@ -1,142 +1,118 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth/next'
+import { sendEmail } from '@/lib/email'
+
+interface PackageDrink {
+  drink: {
+    name: string
+  }
+  quantity: number
+}
+
+interface PackageWithDrinks {
+  id: string
+  name: string
+  memberPrice: number
+  nonMemberPrice: number
+  drinks: PackageDrink[]
+}
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { date } = body
-
     // Get user from session
-    const session = await getServerSession()
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { message: 'Unauthorized' },
+    const userResponse = await fetch('http://localhost:3000/api/user')
+    const userData = await userResponse.json()
+
+    if (!userResponse.ok) {
+      return new NextResponse(
+        JSON.stringify({ error: 'User not authenticated' }),
         { status: 401 }
       )
     }
 
-    // Get user from database
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    })
+    // Parse request body
+    const body = await request.json()
+    const { packageId, date } = body
 
-    if (!user) {
-      return NextResponse.json(
-        { message: 'User not found' },
+    if (!packageId || !date) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Missing required fields' }),
+        { status: 400 }
+      )
+    }
+
+    // Get package details
+    const pkg = await prisma.package.findUnique({
+      where: { id: packageId },
+      include: {
+        drinks: {
+          include: {
+            drink: true
+          }
+        }
+      }
+    }) as PackageWithDrinks | null
+
+    if (!pkg) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Package not found' }),
         { status: 404 }
       )
     }
 
-    // Parse date string to Date object
-    const bookingDate = new Date(date)
-    const dayOfWeek = bookingDate.getDay()
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6 // 0 = Sunday, 6 = Saturday
-
-    // Find or create time slot
-    const timeSlot = await prisma.timeSlot.findFirst({
-      where: {
-        date: {
-          equals: bookingDate
-        },
-        startTime: {
-          equals: new Date(
-            bookingDate.setHours(isWeekend ? 9 : 6, 0, 0, 0)
-          )
-        },
-        endTime: {
-          equals: new Date(
-            bookingDate.setHours(isWeekend ? 12 : 9, 0, 0, 0)
-          )
-        }
-      },
-      include: {
-        bookings: true
-      }
-    })
-
-    if (timeSlot && timeSlot.bookings.length >= timeSlot.capacity) {
-      return NextResponse.json(
-        { message: 'Time slot is fully booked' },
-        { status: 400 }
-      )
-    }
-
-    // Create or get time slot
-    const startTime = new Date(bookingDate)
-    startTime.setHours(isWeekend ? 9 : 6, 0, 0, 0)
-    
-    const endTime = new Date(bookingDate)
-    endTime.setHours(isWeekend ? 12 : 9, 0, 0, 0)
-
-    const slot = await prisma.timeSlot.upsert({
-      where: {
-        date_startTime: {
-          date: bookingDate,
-          startTime
-        }
-      },
-      update: {},
-      create: {
-        date: bookingDate,
-        startTime,
-        endTime,
-        isWeekend,
-        capacity: 100
-      }
-    })
-
     // Create booking
     const booking = await prisma.booking.create({
       data: {
-        userId: user.id,
-        date: bookingDate,
-        slotId: slot.id,
-        status: 'ACTIVE'
+        userId: userData.id,
+        date: new Date(date),
+        membershipAtBooking: userData.membershipStatus,
+        status: 'PENDING_PAYMENT',
+        finalPrice: userData.membershipStatus === 'MEMBER' ? pkg.memberPrice : pkg.nonMemberPrice,
+        packages: {
+          create: {
+            packageId: pkg.id,
+            finalPrice: userData.membershipStatus === 'MEMBER' ? pkg.memberPrice : pkg.nonMemberPrice
+          }
+        }
       }
     })
 
+    // Send confirmation email
+    await sendEmail({
+      to: userData.email,
+      subject: 'Booking Confirmation',
+      html: `
+        <h1>Booking Confirmation</h1>
+        <p>Thank you for booking ${pkg.name}!</p>
+        <p>Your booking details:</p>
+        <ul>
+          <li>Date: ${new Date(date).toLocaleDateString()}</li>
+          <li>Package: ${pkg.name}</li>
+          <li>Price: ${booking.finalPrice} AED</li>
+        </ul>
+        <h2>Included Drinks:</h2>
+        <ul>
+          ${pkg.drinks.map((d: PackageDrink) => `
+            <li>${d.drink.name}: ${d.quantity === -1 ? 'Unlimited' : `${d.quantity}x`}</li>
+          `).join('')}
+        </ul>
+        <p>Please note:</p>
+        <ul>
+          <li>Valid for the booked date only</li>
+          <li>Drinks must be consumed during your visit</li>
+          <li>Non-transferable and non-refundable</li>
+        </ul>
+      `
+    })
 
     return NextResponse.json(booking)
   } catch (error) {
-    console.error('Booking error:', error)
-    return NextResponse.json(
-      { message: 'Failed to create booking' },
-      { status: 500 }
-    )
-  }
-}
-
-export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-
-    if (!userId) {
-      return NextResponse.json(
-        { message: 'User ID is required' },
-        { status: 400 }
-      )
-    }
-
-    const bookings = await prisma.booking.findMany({
-      where: {
-        userId,
-        status: 'ACTIVE'
-      },
-      include: {
-        timeSlot: true
-      },
-      orderBy: {
-        date: 'asc'
-      }
-    })
-
-    return NextResponse.json(bookings)
-  } catch (error) {
-    console.error('Get bookings error:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch bookings' },
+    console.error('Error creating booking:', error)
+    return new NextResponse(
+      JSON.stringify({ 
+        error: 'Failed to create booking',
+        details: error instanceof Error ? error.message : String(error)
+      }),
       { status: 500 }
     )
   }

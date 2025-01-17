@@ -1,33 +1,52 @@
 'use client'
 
 import { useState } from 'react'
+import { signIn } from 'next-auth/react'
 import { Modal } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useRouter } from 'next/navigation'
 
 interface LoginModalProps {
   isOpen: boolean
   onClose: () => void
-  onLogin: () => void
 }
 
-export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
+export function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email || !password) return
 
-    setLoading(true)
-    // Demo login - accepts any input
-    setTimeout(() => {
-      onLogin()
+    try {
+      setLoading(true)
+      setError('')
+
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false
+      })
+
+      if (result?.error) {
+        setError('Invalid credentials')
+        return
+      }
+
+      // Refresh to update session
+      router.refresh()
+      onClose()
+    } catch (error) {
+      console.error('Login error:', error)
+      setError('An error occurred')
+    } finally {
       setLoading(false)
-      setEmail('')
-      setPassword('')
-    }, 1000)
+    }
   }
 
   return (
@@ -37,48 +56,46 @@ export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
       title="Welcome Back"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Demo Notice */}
-        <div className="p-3 rounded bg-white/5 text-sm text-white/60">
-          Demo Mode: Any email/password will work
-        </div>
-
-        {/* Email Input */}
         <div>
-          <label className="block text-sm font-medium text-white mb-2">
+          <label htmlFor="email" className="block text-sm font-medium mb-2">
             Email
           </label>
           <Input
+            id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Enter your email"
-            className="w-full"
+            className="bg-white/10"
             required
           />
         </div>
 
-        {/* Password Input */}
         <div>
-          <label className="block text-sm font-medium text-white mb-2">
+          <label htmlFor="password" className="block text-sm font-medium mb-2">
             Password
           </label>
           <Input
+            id="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter your password"
-            className="w-full"
+            className="bg-white/10"
             required
           />
         </div>
 
-        {/* Login Button */}
+        {error && (
+          <p className="text-red-400 text-sm">{error}</p>
+        )}
+
         <Button
           type="submit"
           className="w-full"
           disabled={loading}
         >
-          {loading ? 'Logging in...' : 'Login'}
+          {loading ? 'Signing in...' : 'Sign In'}
         </Button>
       </form>
     </Modal>

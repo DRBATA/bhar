@@ -1,192 +1,162 @@
 'use client'
 
-import { useState } from 'react'
-import { Button } from "@/components/ui/button"
 import { WellnessCarousel } from '@/components/wellness-carousel'
-import { CartDrawer } from '@/components/cart-drawer'
-import { SubscribeModal } from '@/components/modals/subscribe-modal'
-import { LoginModal } from '@/components/modals/login-modal'
-import { Calendar } from '@/components/ui/calendar'
-import { format } from 'date-fns'
-import { ExperienceSelector } from '@/components/experience-selector'
-import { DrinksSelector } from '@/components/drinks-selector'
-
-interface CartItem {
-  type: 'booking' | 'experience' | 'drink'
-  name: string
-  price: number
-  date?: string
-  time?: string
-  duration?: number // for experiences
-}
+import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 
 export default function Home() {
-  // Auth States
-  const [showSubscribeModal, setShowSubscribeModal] = useState(false)
-  const [showLoginModal, setShowLoginModal] = useState(false)
-  const [isSubscribed, setIsSubscribed] = useState(false)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-
-  // Booking States
-  const [selectedDate, setSelectedDate] = useState<Date>()
-  const [showExperiences, setShowExperiences] = useState(false)
-  const [showDrinks, setShowDrinks] = useState(false)
-  const [cartItems, setCartItems] = useState<CartItem[]>([])
-
-  const handleDateSelect = (date: Date | undefined) => {
-    if (!isSubscribed || !isLoggedIn) {
-      alert('Please subscribe and login first')
-      return
-    }
-
-    setSelectedDate(date)
-    if (date) {
-      // Add booking to cart
-      setCartItems(prev => [...prev, {
-        type: 'booking',
-        name: 'Morning Party',
-        price: 0, // Free with subscription
-        date: format(date, 'MMMM do, yyyy'),
-        time: '8:00 AM - 12:00 PM'
-      }])
-      setShowExperiences(true)
-    }
-  }
-
-  const addToCart = (item: CartItem) => {
-    setCartItems(prev => [...prev, item])
-  }
-
-  const handleCheckout = () => {
-    // Demo confirmation
-    alert(`
-      🎉 Booking Confirmed!
-      
-      An email has been sent with your:
-      - Yacht Entry Pass
-      - Experience Time Slots
-      - Water Bar Purchases
-      
-      Please bring your email confirmation for:
-      • Entry to yacht
-      • Access to booked experiences
-      • Water Bar libations
-      
-      See you at The Water Bar! 🛥️✨
-    `)
-    setCartItems([])
-  }
-
   return (
-    <main className="min-h-screen bg-black">
-      {/* Top Bar */}
-      <div className="fixed top-0 left-0 right-0 p-4 z-50 bg-black/50 backdrop-blur-lg">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Button
-            onClick={() => setShowSubscribeModal(true)}
-            className="bg-amber-500 hover:bg-amber-600 text-black"
-          >
-            Subscribe Now
-          </Button>
+    <div className="min-h-screen bg-gradient-to-br from-miami-sky-light to-miami-sky">
+      {/* Hero Section */}
+      <div className="relative h-[80vh] overflow-hidden">
+        {/* Video Background */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        >
+          <source src="/boat.mp4" type="video/mp4" />
+        </video>
 
-          <Button
-            onClick={() => setShowLoginModal(true)}
-            variant="outline"
-          >
-            {isLoggedIn ? 'Subscribed Member' : 'Login'}
-          </Button>
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-miami-sky-dark/50 to-miami-sky/70 backdrop-blur-sm" />
+
+        {/* Content */}
+        <div className="relative h-full max-w-7xl mx-auto px-4 flex flex-col justify-center">
+          <h1 className="text-5xl md:text-6xl font-medium tracking-wide text-white drop-shadow-lg mb-6">
+            Morning Wellness <br />
+            on the Water
+          </h1>
+          <p className="text-xl text-white/90 font-medium max-w-2xl mb-8">
+            Join us for sunrise yoga, meditation, ice baths, and more. 
+            Experience wellness in a whole new way with our morning 
+            parties on a luxury yacht.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <Link href="/booking">
+              <Button className="bg-gradient-to-r from-miami-coral to-miami-coral-dark hover:opacity-90 text-white font-medium tracking-wide shadow-lg px-8 py-6 text-lg">
+                Book Your Experience
+              </Button>
+            </Link>
+            <Button 
+              className="bg-white/20 hover:bg-white/30 text-white font-medium tracking-wide shadow-lg px-8 py-6 text-lg backdrop-blur-sm"
+              onClick={() => {
+                const element = document.getElementById('experiences')
+                element?.scrollIntoView({ behavior: 'smooth' })
+              }}
+            >
+              Learn More
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="pt-20 px-4">
+      {/* Experiences Section */}
+      <div id="experiences" className="py-20 px-4">
         <div className="max-w-7xl mx-auto">
-          {/* Welcome Text */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Begin Your Wellness Journey
-            </h1>
-            <p className="text-white/60">
-              Select a date to start your morning party experience
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-medium tracking-wide text-miami-coral-dark drop-shadow-md mb-4">
+              Wellness Experiences
+            </h2>
+            <p className="text-miami-coral-dark/90 font-medium max-w-2xl mx-auto">
+              From energizing workouts to peaceful meditation, our yacht offers 
+              a variety of wellness experiences to start your day right.
             </p>
           </div>
 
-          {/* Booking Flow */}
-          <div className="space-y-8">
-            {/* Calendar */}
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-4">Select Date</h2>
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={handleDateSelect}
-                className="rounded-md border border-white/10 p-4 mx-auto"
-              />
-            </div>
-
-            {/* Experiences Section */}
-            {showExperiences && selectedDate && (
-              <ExperienceSelector
-                selectedDate={selectedDate}
-                onAddToCart={(experience, price, time) => {
-                  addToCart({
-                    type: 'experience',
-                    name: experience,
-                    price,
-                    time,
-                    date: format(selectedDate, 'MMMM do, yyyy')
-                  })
-                  // Show drinks after adding an experience
-                  setShowDrinks(true)
-                }}
-              />
-            )}
-
-            {/* Drinks Section */}
-            {showDrinks && (
-              <DrinksSelector
-                onAddToCart={(drink, price) => {
-                  addToCart({
-                    type: 'drink',
-                    name: drink,
-                    price
-                  })
-                }}
-              />
-            )}
-
-            {/* Experience Carousel */}
-            <div className="mt-8">
-              <WellnessCarousel />
-            </div>
-          </div>
+          {/* Carousel */}
+          <WellnessCarousel />
         </div>
       </div>
 
-      {/* Modals */}
-      <SubscribeModal 
-        isOpen={showSubscribeModal}
-        onClose={() => setShowSubscribeModal(false)}
-        onSubscribe={() => {
-          setIsSubscribed(true)
-          setShowSubscribeModal(false)
-        }}
-      />
+      {/* Membership Benefits */}
+      <div className="py-20 px-4 bg-gradient-to-br from-miami-coral/10 to-miami-sky/10 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-medium tracking-wide text-miami-coral-dark drop-shadow-md mb-4">
+              Member Benefits
+            </h2>
+            <p className="text-miami-coral-dark/90 font-medium max-w-2xl mx-auto">
+              Join our wellness community and enjoy exclusive perks and discounts.
+            </p>
+          </div>
 
-      <LoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        onLogin={() => {
-          setIsLoggedIn(true)
-          setShowLoginModal(false)
-        }}
-      />
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Booking Benefits */}
+            <div className="p-6 rounded-lg bg-white/20 border border-white/30 backdrop-blur-md shadow-xl">
+              <h3 className="text-xl font-medium text-miami-coral-dark mb-4">
+                Flexible Booking
+              </h3>
+              <ul className="space-y-3">
+                <li className="flex items-center space-x-2">
+                  <span className="text-miami-coral-dark">✓</span>
+                  <span className="text-miami-coral-dark/90 font-medium">Unlimited bookings</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-miami-coral-dark">✓</span>
+                  <span className="text-miami-coral-dark/90 font-medium">Priority access</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-miami-coral-dark">✓</span>
+                  <span className="text-miami-coral-dark/90 font-medium">Easy rescheduling</span>
+                </li>
+              </ul>
+            </div>
 
-      {/* Cart Drawer */}
-      <CartDrawer
-        items={cartItems}
-        onCheckout={handleCheckout}
-      />
-    </main>
+            {/* Experience Benefits */}
+            <div className="p-6 rounded-lg bg-white/20 border border-white/30 backdrop-blur-md shadow-xl">
+              <h3 className="text-xl font-medium text-miami-coral-dark mb-4">
+                Experience Perks
+              </h3>
+              <ul className="space-y-3">
+                <li className="flex items-center space-x-2">
+                  <span className="text-miami-coral-dark">✓</span>
+                  <span className="text-miami-coral-dark/90 font-medium">20% off all experiences</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-miami-coral-dark">✓</span>
+                  <span className="text-miami-coral-dark/90 font-medium">Member-only sessions</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-miami-coral-dark">✓</span>
+                  <span className="text-miami-coral-dark/90 font-medium">Personal wellness tracking</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Drink Benefits */}
+            <div className="p-6 rounded-lg bg-white/20 border border-white/30 backdrop-blur-md shadow-xl">
+              <h3 className="text-xl font-medium text-miami-coral-dark mb-4">
+                Water Bar Perks
+              </h3>
+              <ul className="space-y-3">
+                <li className="flex items-center space-x-2">
+                  <span className="text-miami-coral-dark">✓</span>
+                  <span className="text-miami-coral-dark/90 font-medium">15% off all drinks</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-miami-coral-dark">✓</span>
+                  <span className="text-miami-coral-dark/90 font-medium">Exclusive recipes</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-miami-coral-dark">✓</span>
+                  <span className="text-miami-coral-dark/90 font-medium">Monthly tastings</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="text-center mt-12">
+            <Link href="/booking">
+              <Button className="bg-gradient-to-r from-miami-coral to-miami-coral-dark hover:opacity-90 text-white font-medium tracking-wide shadow-lg px-8 py-6 text-lg">
+                Join Now - 550 AED/month
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
