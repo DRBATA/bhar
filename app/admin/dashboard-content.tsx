@@ -143,9 +143,9 @@ export default function DashboardContent() {
                 
                 {/* Event Types */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {/* Morning Party */}
+                  {/* Yacht Session */}
                   <div className="bg-white/10 rounded-lg p-6">
-                    <h3 className="font-medium mb-2">Morning Party</h3>
+                    <h3 className="font-medium mb-2">Yacht Session</h3>
                     <div className="space-y-2 text-sm text-white/60">
                       <p>Capacity: 100</p>
                       <p>Duration: 3 hours</p>
@@ -157,8 +157,8 @@ export default function DashboardContent() {
                       className="mt-4 w-full"
                       onClick={() => openScheduleModal({
                         id: '1',
-                        type: 'MORNING_PARTY',
-                        name: 'Morning Party',
+                        type: 'YACHT_SESSION',
+                        name: 'Yacht Session',
                         description: 'Start your day with energy and good vibes',
                         capacity: 100,
                         memberPrice: 150,
@@ -169,9 +169,9 @@ export default function DashboardContent() {
                     </Button>
                   </div>
 
-                  {/* Water Bar */}
+                  {/* Sober Rave */}
                   <div className="bg-white/10 rounded-lg p-6">
-                    <h3 className="font-medium mb-2">Water Bar</h3>
+                    <h3 className="font-medium mb-2">Sober Rave</h3>
                     <div className="space-y-2 text-sm text-white/60">
                       <p>Capacity: 100</p>
                       <p>Duration: 3 hours</p>
@@ -183,9 +183,9 @@ export default function DashboardContent() {
                       className="mt-4 w-full"
                       onClick={() => openScheduleModal({
                         id: '2',
-                        type: 'WATER_BAR',
-                        name: 'Water Bar',
-                        description: 'Premium hydration service',
+                        type: 'SOBER_RAVE',
+                        name: 'Sober Rave',
+                        description: 'Dance as the sun rises',
                         capacity: 100,
                         memberPrice: 0,
                         nonMemberPrice: 50
