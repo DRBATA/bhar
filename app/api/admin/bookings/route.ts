@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth/next'
+import { UserRole } from '@prisma/client'
 
 export async function GET() {
   try {
@@ -18,14 +19,14 @@ export async function GET() {
       where: { email: session.user.email }
     })
 
-    if (!user || user.role !== 'STAFF') {
+    if (!user || user.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { message: 'Access denied' },
         { status: 403 }
       )
     }
 
-    // Get all bookings with user and time slot info
+    // Get all bookings with user and event info
     const bookings = await prisma.booking.findMany({
       include: {
         user: {
@@ -34,21 +35,16 @@ export async function GET() {
             email: true
           }
         },
-        timeSlot: {
-          select: {
-            startTime: true,
-            endTime: true
+        events: {
+          include: {
+            event: true,
+            schedule: true
           }
         }
       },
-      orderBy: [
-        {
-          date: 'desc'
-        },
-        {
-          createdAt: 'desc'
-        }
-      ]
+      orderBy: {
+        createdAt: 'desc'
+      }
     })
 
     return NextResponse.json(bookings)
@@ -83,7 +79,7 @@ export async function PATCH(request: Request) {
       where: { email: session.user.email }
     })
 
-    if (!user || user.role !== 'STAFF') {
+    if (!user || user.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { message: 'Access denied' },
         { status: 403 }
@@ -108,10 +104,10 @@ export async function PATCH(request: Request) {
             email: true
           }
         },
-        timeSlot: {
-          select: {
-            startTime: true,
-            endTime: true
+        events: {
+          include: {
+            event: true,
+            schedule: true
           }
         }
       }

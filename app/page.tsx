@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Button } from "@/components/ui/button"
+import { toast } from "@/components/ui/use-toast"
 
 export default function HomePage() {
   return (
@@ -37,9 +38,13 @@ export default function HomePage() {
             <h1 className="text-6xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-rose-100 via-teal-100 to-rose-100">
               Morning Wellness on the Water
             </h1>
-            <p className="text-xl text-gray-300 mb-8 max-w-2xl">
+            <p className="text-xl text-gray-300 mb-4 max-w-2xl">
               Join us for sunrise yoga, meditation, ice baths, and more. Experience 
               wellness in a whole new way with our morning parties on a luxury yacht.
+            </p>
+            <p className="text-lg text-gray-400 mb-8 max-w-2xl">
+              Located at Dubai Creek, where modern wellness meets stunning waterfront views. 
+              Perfect for early risers and wellness enthusiasts seeking a unique morning experience.
             </p>
             <div className="flex gap-4">
               <Link href="/booking">
@@ -51,14 +56,16 @@ export default function HomePage() {
                   Book Your Experience
                 </Button>
               </Link>
-              <Link href="/packages">
-                <Button 
-                  variant="outline" 
-                  className="text-white border-white/20 hover:bg-white/10 text-lg px-8 py-6"
-                >
-                  Learn More
-                </Button>
-              </Link>
+              <Button 
+                variant="outline" 
+                className="text-white border-white/20 hover:bg-white/10 text-lg px-8 py-6"
+                onClick={() => toast({
+                  title: "Coming Soon",
+                  description: "Full package details will be available soon. Check back later!",
+                })}
+              >
+                Learn More
+              </Button>
             </div>
           </div>
         </div>
@@ -71,16 +78,16 @@ export default function HomePage() {
           <div className="grid md:grid-cols-3 gap-8">
             {[
               {
-                title: 'Morning Yacht Sessions',
-                description: 'Start your day with a sunrise wellness experience on our luxury yacht.',
+                title: 'Sunrise Yacht Sessions',
+                description: 'Start your day with a 3-hour wellness experience on our luxury yacht at Dubai Creek. Perfect for early risers seeking tranquility.',
               },
               {
-                title: 'Daily Activities',
-                description: 'From yoga to functional fitness, each day brings a new wellness adventure.',
+                title: 'Curated Activities',
+                description: 'Choose from yoga, meditation, or functional fitness. Each session is designed to energize your morning and set the tone for your day.',
               },
               {
-                title: 'Premium Add-ons',
-                description: 'Enhance your experience with ice baths, reflexology, and premium drinks.',
+                title: 'Premium Experiences',
+                description: 'Enhance your morning with ice baths, reflexology, and our signature adaptogenic drinks. Customize your wellness journey.',
               },
             ].map((feature, index) => (
               <div 

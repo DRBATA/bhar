@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/use-toast'
 import { VideoBackground } from './video-background'
@@ -73,12 +74,12 @@ const DAY_PASS: PassPackage = {
   name: 'Day Pass',
   priceAED: 110,
   priceUSD: 30,
-  description: 'Turn your drinks into a morning wellness experience',
+  description: 'Add a yacht session - book your preferred date later',
   features: [
     'Morning yacht session (6am-9am)',
     'Daily wellness activity',
-    'Premium location at Dubai Creek',
-    'Stunning sunrise views',
+    'Valid for 3 months',
+    'Flexible scheduling',
   ],
 }
 
@@ -128,11 +129,60 @@ export function DrinksPurchase() {
   const hasDrinks = cart.some(item => item.type === 'drink')
 
   const checkout = async () => {
-    const total = cart.reduce((sum, item) => sum + item.package.priceAED, 0)
-    toast({
-      title: 'Processing payment',
-      description: `Total: ${total} AED`,
-    })
+    try {
+      const total = cart.reduce((sum, item) => sum + item.package.priceAED, 0)
+      
+      // Get drink package details
+      const drinkItems = cart.filter(item => item.type === 'drink')
+      const totalDrinks = drinkItems.reduce((sum, item) => sum + (item.package as DrinkPackage).drinks, 0)
+      const hasBasic = drinkItems.some(item => item.package.priceAED === 90)
+      const hasPremium = drinkItems.some(item => item.package.priceAED === 150)
+      
+      // Get add-ons
+      const hasPass = cart.some(item => item.type === 'pass')
+      const hasIceBath = cart.some(item => item.type === 'addon' && item.package.id === 'ice')
+
+      // TODO: Replace with actual Stripe integration
+      toast({
+        title: 'Processing payment',
+        description: `Total: ${total} AED`,
+      })
+
+      // Send confirmation email
+      const response = await fetch('/api/email/drink-confirmation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          order: {
+            package: hasPremium ? 'PREMIUM' : 'BASIC',
+            totalPrice: total,
+            drinks: totalDrinks,
+            addOns: {
+              dayPass: hasPass,
+              iceBath: hasIceBath
+            }
+          }
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to send confirmation email')
+      }
+
+      toast({
+        title: 'Order confirmed!',
+        description: 'Check your email for order details.',
+      })
+    } catch (error) {
+      console.error('Checkout error:', error)
+      toast({
+        title: 'Error processing order',
+        description: 'Please try again or contact support.',
+        variant: 'destructive'
+      })
+    }
   }
 
   return (
@@ -140,14 +190,23 @@ export function DrinksPurchase() {
       <VideoBackground />
       
       <div className="relative z-10 min-h-screen text-white p-8">
+        {/* Navigation */}
+        <nav className="absolute top-0 left-0 p-6">
+          <Link href="/">
+            <Button variant="ghost" className="text-white hover:bg-white/10">
+              ← Back to Home
+            </Button>
+          </Link>
+        </nav>
+
         {/* Header */}
-        <div className="max-w-4xl mx-auto text-center mb-12">
+        <div className="max-w-4xl mx-auto text-center mb-12 pt-16">
           <h1 className="text-6xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-rose-100 via-teal-100 to-rose-100">
             Premium Drinks Menu
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-            Experience our curated selection of premium adaptogens and non-alcoholic cocktails. 
-            Mix and match to create your perfect combination.
+            Experience our curated selection of premium adaptogens and non-alcoholic cocktails
+            at Dubai Creek. Mix and match to create your perfect morning combination.
           </p>
         </div>
 
@@ -212,7 +271,7 @@ export function DrinksPurchase() {
                     <div>
                       <h3 className="text-xl font-bold mb-2">Make it a Morning</h3>
                       <p className="text-gray-300 max-w-md">
-                        Turn your drinks into a wellness experience with our morning yacht session
+                        Get a Day Pass now, book your preferred morning session later
                       </p>
                     </div>
                     <div className="flex flex-col items-end">
