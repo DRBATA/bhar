@@ -9,15 +9,13 @@ datasource db {
 }
 
 enum UserRole {
-  USER
-  STAFF
-  ADMIN
+  USER    // Regular user
+  ADMIN   // Admin/staff
 }
 
 enum MembershipStatus {
   NON_MEMBER
-  MEMBER
-  PREMIUM
+  MEMBER      // Monthly subscriber ($150/month)
 }
 
 enum BookingStatus {
@@ -28,20 +26,22 @@ enum BookingStatus {
 }
 
 enum EventType {
-  MORNING_PARTY
-  WATER_BAR        // Always a service, includes all drinks
-  YOGA
-  MEDITATION
-  ICE_BATH
-  FUNCTIONAL_FITNESS
-  REFLEXOLOGY
-  SOBER_RAVE
+  YACHT_SESSION    // 3-hour yacht session (max 100 people)
+  SOBER_RAVE      // Pot luck wellness activity
+  YOGA            // Pot luck wellness activity
+  FUNCTIONAL_FITNESS // Pot luck wellness activity
+  ICE_BATH        // Add-on (20 min, 2 slots)
+  REFLEXOLOGY     // Add-on (20 min, 1 slot)
 }
 
-enum PackageType {
-  YACHT_ONLY     // Base yacht booking
-  YACHT_DRINKS   // Yacht + water bar service
-  YACHT_FULL     // All inclusive
+enum EventCategory {
+  WELLNESS        // Included activities (yacht, yoga, rave, fitness)
+  ADD_ON          // Paid extras (ice bath, reflexology)
+}
+
+enum DrinkPackage {
+  BASIC           // 90 AED: Any 2 drinks (adaptogen/non-alcoholic)
+  PREMIUM         // 150 AED: Any 4 drinks (adaptogen/non-alcoholic)
 }
 
 model User {
@@ -51,8 +51,8 @@ model User {
   password          String
   role              UserRole         @default(USER)
   membershipStatus  MembershipStatus @default(NON_MEMBER)
-  membershipStart   DateTime?
-  membershipEnd     DateTime?
+  membershipStart   DateTime?        // For subscribers only
+  membershipEnd     DateTime?        // For subscribers only
   emailVerified     Boolean          @default(false)
   verifyToken       String?          @unique
   createdAt         DateTime         @default(now())
@@ -63,109 +63,66 @@ model User {
 model Event {
   id                String          @id @default(cuid())
   type              EventType
+  category          EventCategory   
   name              String
   description       String
-  duration          Int            // in minutes
-  capacity          Int
-  memberPrice       Float          // Free (0) for water bar if member
-  nonMemberPrice    Float          // Standard pricing
+  duration          Int             // in minutes (180 for yacht, 20 for add-ons)
+  capacity          Int             // 100 for yacht, 2 for ice bath, 1 for reflexology
+  memberPrice       Float           // Member price (40 AED for add-ons)
+  nonMemberPrice    Float           // Regular price (60 AED for add-ons)
   schedules         EventSchedule[]
   bookings          BookingEvent[]
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 }
 
 model EventSchedule {
-  id        String   @id @default(cuid())
-  eventId   String
-  event     Event    @relation(fields: [eventId], references: [id])
-  date      DateTime
-  startTime DateTime
-  endTime   DateTime
-  capacity  Int      // Override event capacity if needed
-  bookings  BookingEvent[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  eventId         String
+  event           Event    @relation(fields: [eventId], references: [id])
+  date            DateTime
+  startTime       DateTime // 6am weekdays, 9am weekends for yacht
+  endTime         DateTime // 9am weekdays, 12pm weekends for yacht
+  capacity        Int      // From event, but can override
+  wellnessEventId String?  // The pot luck wellness activity for this yacht session
+  bookings        BookingEvent[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@unique([eventId, date, startTime])
-}
-
-model Package {
-  id                String    @id @default(cuid())
-  type              PackageType
-  name              String
-  description       String
-  memberPrice       Float
-  nonMemberPrice    Float
-  drinks            PackageDrink[]
-  bookings         BookingPackage[]
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-}
-
-model Drink {
-  id            String         @id @default(cuid())
-  name          String
-  description   String
-  packages      PackageDrink[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-}
-
-model PackageDrink {
-  id            String    @id @default(cuid())
-  packageId     String
-  package       Package   @relation(fields: [packageId], references: [id])
-  drinkId       String
-  drink         Drink     @relation(fields: [drinkId], references: [id])
-  quantity      Int       // Number of this drink in the package
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  @@unique([packageId, drinkId])
 }
 
 model Booking {
   id                    String           @id @default(cuid())
   userId                String
   user                  User             @relation(fields: [userId], references: [id])
-  date                  DateTime
   membershipAtBooking   MembershipStatus // Snapshot for audit
   status                BookingStatus    @default(PENDING_PAYMENT)
-  checkedIn             Boolean          @default(false)
-  qrCode                String?          @unique
-  finalPrice            Float            // Total price after membership discounts
+  drinkPackage         DrinkPackage?    // Optional: BASIC (90 AED) or PREMIUM (150 AED)
+  drinkNotes           String?          // Optional: Customer's drink preferences
+  finalPrice            Float            // Total price after any discounts
   paidAmount            Float            @default(0)
-  events                BookingEvent[]
-  packages              BookingPackage[]
+  addOns                Json?            // Store add-ons as JSON (reflexology, ice bath)
+  notes                 String?          // Optional notes for bartender
+  events                BookingEvent[]   // The yacht session, wellness activity, and any add-ons
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
 }
 
 model BookingEvent {
   id              String        @id @default(cuid())
-  bookingId       String
-  booking         Booking       @relation(fields: [bookingId], references: [id])
+  bookingId       String?       // Optional: for actual bookings vs available slots
+  booking         Booking?      @relation(fields: [bookingId], references: [id])
   eventId         String
   event           Event         @relation(fields: [eventId], references: [id])
   scheduleId      String
   schedule        EventSchedule @relation(fields: [scheduleId], references: [id])
-  finalPrice      Float         // Price at time of booking (member/non-member)
+  startTime       DateTime      // For 20-min add-on slots
+  endTime         DateTime      // For 20-min add-on slots
+  capacity        Int?          // For add-on slots
+  finalPrice      Float         // Price at time of booking
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
   @@unique([bookingId, eventId, scheduleId])
-}
-
-model BookingPackage {
-  id          String    @id @default(cuid())
-  bookingId   String
-  booking     Booking   @relation(fields: [bookingId], references: [id])
-  packageId   String
-  package     Package   @relation(fields: [packageId], references: [id])
-  finalPrice  Float     // Price at time of booking (member/non-member)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@unique([bookingId, packageId])
 }

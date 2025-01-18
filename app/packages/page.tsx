@@ -68,8 +68,6 @@ export default function PackagesPage() {
     }
   }, [])
 
-  console.log('Current state:', { loading, error, packagesCount: packages.length })
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-900 to-gray-800">
