@@ -9,120 +9,177 @@ datasource db {
 }
 
 enum UserRole {
-  USER    // Regular user
-  ADMIN   // Admin/staff
+  USER
+  ADMIN
+}
+
+enum Currency {
+  USD
+  AED
 }
 
 enum MembershipStatus {
-  NON_MEMBER
-  MEMBER      // Monthly subscriber ($150/month)
+  NON_MEMBER  // Default state
+  MEMBER      // Active member
+}
+
+enum SessionStatus {
+  UPCOMING
+  IN_PROGRESS
+  COMPLETED
 }
 
 enum BookingStatus {
-  PENDING_PAYMENT
-  CONFIRMED
-  CANCELLED
-  EXPIRED
-}
-
-enum EventType {
-  YACHT_SESSION    // 3-hour yacht session (max 100 people)
-  SOBER_RAVE      // Pot luck wellness activity
-  YOGA            // Pot luck wellness activity
-  FUNCTIONAL_FITNESS // Pot luck wellness activity
-  ICE_BATH        // Add-on (20 min, 2 slots)
-  REFLEXOLOGY     // Add-on (20 min, 1 slot)
-}
-
-enum EventCategory {
-  WELLNESS        // Included activities (yacht, yoga, rave, fitness)
-  ADD_ON          // Paid extras (ice bath, reflexology)
+  PENDING_PAYMENT  // Initial state
+  CONFIRMED       // After payment
+  CANCELLED       // Cancelled by member
+  COMPLETED       // Session completed
 }
 
 enum DrinkPackage {
-  BASIC           // 90 AED: Any 2 drinks (adaptogen/non-alcoholic)
-  PREMIUM         // 150 AED: Any 4 drinks (adaptogen/non-alcoholic)
+  BASIC   // 2 drinks
+  PREMIUM // 4 drinks
 }
 
 model User {
-  id                String           @id @default(cuid())
-  name              String
-  email             String           @unique
-  password          String
-  role              UserRole         @default(USER)
-  membershipStatus  MembershipStatus @default(NON_MEMBER)
-  membershipStart   DateTime?        // For subscribers only
-  membershipEnd     DateTime?        // For subscribers only
-  emailVerified     Boolean          @default(false)
-  verifyToken       String?          @unique
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  bookings          Booking[]
-}
-
-model Event {
   id                String          @id @default(cuid())
-  type              EventType
-  category          EventCategory   
   name              String
-  description       String
-  duration          Int             // in minutes (180 for yacht, 20 for add-ons)
-  capacity          Int             // 100 for yacht, 2 for ice bath, 1 for reflexology
-  memberPrice       Float           // Member price (40 AED for add-ons)
-  nonMemberPrice    Float           // Regular price (60 AED for add-ons)
-  schedules         EventSchedule[]
-  bookings          BookingEvent[]
+  email             String          @unique
+  password          String
+  role              UserRole        @default(USER)
+  
+  // Membership
+  status            MembershipStatus @default(NON_MEMBER)
+  membershipStart   DateTime?       // When subscription started
+  membershipEnd     DateTime?       // When subscription ends
+  activeBookingLimit Int            @default(3)  // Max concurrent bookings
+  preferredCurrency Currency        @default(USD)
+  
+  // Password reset
+  resetToken        String?         @unique
+  resetTokenExpiry  DateTime?
+  
+  // Relations
+  bookings          Booking[]
+  purchases         Purchase[]      // On-site purchases
+  
+  // Timestamps
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
+
+  @@index([email])
+  @@index([status])
 }
 
-model EventSchedule {
-  id              String   @id @default(cuid())
-  eventId         String
-  event           Event    @relation(fields: [eventId], references: [id])
-  date            DateTime
-  startTime       DateTime // 6am weekdays, 9am weekends for yacht
-  endTime         DateTime // 9am weekdays, 12pm weekends for yacht
-  capacity        Int      // From event, but can override
-  wellnessEventId String?  // The pot luck wellness activity for this yacht session
-  bookings        BookingEvent[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([eventId, date, startTime])
-}
-
-model Booking {
-  id                    String           @id @default(cuid())
-  userId                String
-  user                  User             @relation(fields: [userId], references: [id])
-  membershipAtBooking   MembershipStatus // Snapshot for audit
-  status                BookingStatus    @default(PENDING_PAYMENT)
-  drinkPackage         DrinkPackage?    // Optional: BASIC (90 AED) or PREMIUM (150 AED)
-  drinkNotes           String?          // Optional: Customer's drink preferences
-  finalPrice            Float            // Total price after any discounts
-  paidAmount            Float            @default(0)
-  addOns                Json?            // Store add-ons as JSON (reflexology, ice bath)
-  notes                 String?          // Optional notes for bartender
-  events                BookingEvent[]   // The yacht session, wellness activity, and any add-ons
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
-}
-
-model BookingEvent {
+model Session {
   id              String        @id @default(cuid())
-  bookingId       String?       // Optional: for actual bookings vs available slots
-  booking         Booking?      @relation(fields: [bookingId], references: [id])
-  eventId         String
-  event           Event         @relation(fields: [eventId], references: [id])
-  scheduleId      String
-  schedule        EventSchedule @relation(fields: [scheduleId], references: [id])
-  startTime       DateTime      // For 20-min add-on slots
-  endTime         DateTime      // For 20-min add-on slots
-  capacity        Int?          // For add-on slots
-  finalPrice      Float         // Price at time of booking
+  date            DateTime
+  startTime       DateTime      // 6am weekdays, 9am weekends
+  endTime         DateTime      // 9am weekdays, 12pm weekends
+  
+  // Capacity
+  capacity        Int           @default(100)
+  availableSlots  Int           @default(100)
+  isWeekend       Boolean       @default(false)
+  
+  // Add-on slots
+  iceSlots        Int           @default(9)  // 20-min slots
+  reflexSlots     Int           @default(9)  // 20-min slots
+  
+  // Status
+  isCancellable   Boolean       @default(true)   // Can be cancelled by members
+  isPast          Boolean       @default(false)  // Session has ended
+  status          SessionStatus @default(UPCOMING)
+  
+  // Relations
+  bookings        Booking[]
+  
+  // Timestamps
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  @@unique([bookingId, eventId, scheduleId])
+  @@unique([date, startTime])
+  @@index([date])
+  @@index([startTime])
+  @@index([status])
+}
+
+model Booking {
+  id              String          @id @default(cuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id])
+  sessionId       String
+  session         Session         @relation(fields: [sessionId], references: [id])
+  
+  // Status
+  status          BookingStatus   @default(PENDING_PAYMENT)
+  isCancellable   Boolean         @default(false)
+  isComplete      Boolean         @default(false)
+  
+  // Timestamps
+  bookedAt        DateTime        @default(now())
+  cancelledAt     DateTime?       // When booking was cancelled
+  completedAt     DateTime?       // When session was completed
+  
+  // Payment
+  currency        Currency        @default(USD)
+  paymentStatus   String?         // For Stripe integration
+  paymentIntentId String?         // Stripe payment intent ID
+  
+  // Package & Pricing
+  bookingPackage  String?         // ONE_OFF, WEEKLY, BI_WEEKLY
+  basePrice       Float           // Package or session price
+  
+  // Drinks Package
+  drinkPackage    DrinkPackage?
+  drinkPrice      Float           @default(0)
+  drinkNotes      String?
+  
+  // Add-ons
+  hasIceBath      Boolean         @default(false)
+  iceSlotTime     DateTime?       // Must be within session time
+  iceBathPrice    Float           @default(0)
+  
+  hasReflexology  Boolean         @default(false)
+  reflexSlotTime  DateTime?       // Must be within session time
+  reflexPrice     Float           @default(0)
+  
+  // Additional purchases
+  purchases       Purchase[]
+  
+  // Totals
+  totalPrice      Float           // Initial booking price
+  finalPrice      Float?          // Including on-site purchases
+  
+  // Notes
+  notes           String?
+  
+  // Timestamps
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([status])
+}
+
+model Purchase {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  bookingId   String
+  booking     Booking   @relation(fields: [bookingId], references: [id])
+  
+  // Purchase details
+  itemType    String    // BASIC_DRINK, PREMIUM_DRINK, ICE_BATH, REFLEXOLOGY
+  quantity    Int
+  price       Float
+  currency    Currency  @default(USD)
+  
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([bookingId])
 }

@@ -10,9 +10,10 @@ import { useRouter } from 'next/navigation'
 interface LoginModalProps {
   isOpen: boolean
   onClose: () => void
+  onLogin?: () => void // Optional callback for successful login
 }
 
-export function LoginModal({ isOpen, onClose }: LoginModalProps) {
+export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -40,6 +41,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
       // Refresh to update session
       router.refresh()
+      onLogin?.() // Call onLogin if provided
       onClose()
     } catch (error) {
       console.error('Login error:', error)

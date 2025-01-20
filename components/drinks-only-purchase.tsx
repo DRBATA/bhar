@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/use-toast'
 import { VideoBackground } from './video-background'
+import { TicketDownload } from './ticket-download'
 
 interface DrinkPackage {
   id: string
@@ -95,6 +96,7 @@ const ICE_BATH: Addon = {
 
 export function DrinksPurchase() {
   const [cart, setCart] = useState<CartItem[]>([])
+  const [ticket, setTicket] = useState<any>(null) // Will show ticket after purchase
 
   const addToCart = (pkg: DrinkPackage) => {
     setCart([...cart, { type: 'drink', package: pkg }])
@@ -148,32 +150,33 @@ export function DrinksPurchase() {
         description: `Total: ${total} AED`,
       })
 
-      // Send confirmation email
-      const response = await fetch('/api/email/drink-confirmation', {
+      // Create booking and get ticket
+      const response = await fetch('/api/bookings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          order: {
-            package: hasPremium ? 'PREMIUM' : 'BASIC',
-            totalPrice: total,
-            drinks: totalDrinks,
-            addOns: {
-              dayPass: hasPass,
-              iceBath: hasIceBath
-            }
+          drinkPackage: hasPremium ? 'PREMIUM' : 'BASIC',
+          drinkNotes: '',
+          addOns: {
+            dayPass: hasPass,
+            iceBath: hasIceBath
           }
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to send confirmation email')
+        throw new Error('Failed to create booking')
       }
+
+      const data = await response.json()
+      setTicket(data.ticket)
+      setCart([]) // Clear cart after successful purchase
 
       toast({
         title: 'Order confirmed!',
-        description: 'Check your email for order details.',
+        description: 'Your ticket is ready to download.',
       })
     } catch (error) {
       console.error('Checkout error:', error)
@@ -183,6 +186,11 @@ export function DrinksPurchase() {
         variant: 'destructive'
       })
     }
+  }
+
+  // Show ticket if purchase is complete
+  if (ticket) {
+    return <TicketDownload ticket={ticket} />
   }
 
   return (

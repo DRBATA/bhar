@@ -1,102 +1,85 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-
-type DrinkWithDetails = {
-  drink: {
-    id: string
-    name: string
-    description: string
-  }
-  quantity: number
-}
-
-type PackageWithDrinks = {
-  id: string
-  name: string
-  description: string
-  memberPrice: number
-  nonMemberPrice: number
-  drinks: DrinkWithDetails[]
-}
-
-type PrismaPackage = {
-  id: string
-  name: string
-  description: string
-  memberPrice: number
-  nonMemberPrice: number
-  drinks: {
-    drink: {
-      id: string
-      name: string
-      description: string
-    }
-    quantity: number
-  }[]
-}
+import prisma from '@/lib/prisma'
+import { getServerSession } from 'next-auth'
+import { MembershipStatus } from '@prisma/client'
 
 export async function GET() {
+  const session = await getServerSession()
+
+  if (!session?.user?.email) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
   try {
-    console.log('Fetching packages...')
-    const packages = await prisma.package.findMany({
-      where: {
-        type: {
-          in: ['YACHT_DRINKS', 'YACHT_FULL']
-        }
-      },
-      include: {
-        drinks: {
-          include: {
-            drink: true
-          }
-        }
-      },
-      orderBy: {
-        memberPrice: 'asc'
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: {
+        status: true,
+        membershipStart: true,
+        membershipEnd: true
       }
     })
 
-    console.log('Found packages:', JSON.stringify(packages, null, 2))
-
-    // Transform the data to match the frontend interface
-    const transformedPackages = packages.map((pkg: PrismaPackage) => ({
-      id: pkg.id,
-      name: pkg.name,
-      description: pkg.description,
-      memberPrice: pkg.memberPrice,
-      nonMemberPrice: pkg.nonMemberPrice,
-      drinks: pkg.drinks.map((d: { drink: { id: string; name: string; description: string }; quantity: number }) => ({
-        drink: {
-          id: d.drink.id,
-          name: d.drink.name,
-          description: d.drink.description
-        },
-        quantity: d.quantity
-      }))
-    })) satisfies PackageWithDrinks[]
-
-    console.log('Transformed packages:', JSON.stringify(transformedPackages, null, 2))
-    return NextResponse.json(transformedPackages)
-  } catch (error) {
-    console.error('Error in packages API:', error)
-    if (error instanceof Error) {
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      })
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      )
     }
-    return new NextResponse(
-      JSON.stringify({ 
-        error: 'Failed to fetch packages',
-        details: error instanceof Error ? error.message : String(error)
-      }), 
-      { 
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json'
-        }
+
+    const packages = [
+      {
+        id: 'one-off',
+        name: 'One-off Session',
+        description: 'Single session access',
+        price: {
+          usd: user.status === MembershipStatus.MEMBER ? 0 : 40,
+          aed: user.status === MembershipStatus.MEMBER ? 0 : 150
+        },
+        memberPrice: 'Free',
+        features: [
+          'One session',
+          'Basic drink package included',
+          'Access to all facilities',
+          'Booking up to 1 week in advance'
+        ]
+      },
+      {
+        id: 'bi-weekly',
+        name: 'Bi-weekly Package',
+        description: 'Two sessions per month',
+        price: {
+          usd: user.status === MembershipStatus.MEMBER ? 60 : 120,
+          aed: user.status === MembershipStatus.MEMBER ? 220 : 440
+        },
+        memberPrice: '220 AED',
+        features: [
+          'Two sessions per month',
+          'Premium drink package included',
+          'Priority booking',
+          'Exclusive member events',
+          'Booking up to 2 weeks in advance'
+        ]
       }
+    ]
+
+    return NextResponse.json({
+      packages,
+      user: {
+        isMember: user.status === MembershipStatus.MEMBER,
+        membershipStart: user.membershipStart,
+        membershipEnd: user.membershipEnd
+      }
+    })
+
+  } catch (error) {
+    console.error('Error fetching packages:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch packages' },
+      { status: 500 }
     )
   }
 }

@@ -1,118 +1,214 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { sendEmail } from '@/lib/email'
+import { getServerSession } from 'next-auth/next'
+import prisma from '@/lib/prisma'
+import { Prisma, BookingStatus, DrinkPackage, MembershipStatus } from '@prisma/client'
 
-interface PackageDrink {
-  drink: {
-    name: string
-  }
-  quantity: number
+type UserWithBookings = {
+  id: string
+  email: string
+  status: MembershipStatus
+  bookings: Array<{
+    id: string
+    status: BookingStatus
+  }>
 }
 
-interface PackageWithDrinks {
-  id: string
-  name: string
-  memberPrice: number
-  nonMemberPrice: number
-  drinks: PackageDrink[]
+// Type for booking creation data
+interface CreateBookingData {
+  sessionId: string
+  packageType?: string
+  drinkPackage: DrinkPackage | null
+  addOns: {
+    iceBath: boolean
+    reflexology: boolean
+  }
 }
 
 export async function POST(request: Request) {
+  const authSession = await getServerSession()
+
+  if (!authSession?.user?.email) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
   try {
-    // Get user from session
-    const userResponse = await fetch('http://localhost:3000/api/user')
-    const userData = await userResponse.json()
+    const body = await request.json() as CreateBookingData
+    const { sessionId, packageType, drinkPackage, addOns } = body
 
-    if (!userResponse.ok) {
-      return new NextResponse(
-        JSON.stringify({ error: 'User not authenticated' }),
-        { status: 401 }
-      )
-    }
-
-    // Parse request body
-    const body = await request.json()
-    const { packageId, date } = body
-
-    if (!packageId || !date) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Missing required fields' }),
-        { status: 400 }
-      )
-    }
-
-    // Get package details
-    const pkg = await prisma.package.findUnique({
-      where: { id: packageId },
-      include: {
-        drinks: {
-          include: {
-            drink: true
+    // Get user with active bookings count
+    const user = await prisma.user.findUnique({
+      where: { email: authSession.user.email },
+      select: {
+        id: true,
+        email: true,
+        status: true,
+        bookings: {
+          where: {
+            status: BookingStatus.CONFIRMED
           }
         }
       }
-    }) as PackageWithDrinks | null
+    }) as UserWithBookings | null
 
-    if (!pkg) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Package not found' }),
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
         { status: 404 }
       )
     }
 
-    // Create booking
-    const booking = await prisma.booking.create({
-      data: {
-        userId: userData.id,
-        date: new Date(date),
-        membershipAtBooking: userData.membershipStatus,
-        status: 'PENDING_PAYMENT',
-        finalPrice: userData.membershipStatus === 'MEMBER' ? pkg.memberPrice : pkg.nonMemberPrice,
-        packages: {
-          create: {
-            packageId: pkg.id,
-            finalPrice: userData.membershipStatus === 'MEMBER' ? pkg.memberPrice : pkg.nonMemberPrice
-          }
-        }
-      }
+    // Check active bookings limit for members
+    const isMember = user.status === MembershipStatus.MEMBER
+    if (isMember && user.bookings.length >= 3) { // Default max bookings is 3
+      return NextResponse.json(
+        { error: 'Maximum active bookings limit reached' },
+        { status: 400 }
+      )
+    }
+
+    // Get session details
+    const sessionData = await prisma.session.findUnique({
+      where: { id: sessionId }
     })
 
-    // Send confirmation email
-    await sendEmail({
-      to: userData.email,
-      subject: 'Booking Confirmation',
-      html: `
-        <h1>Booking Confirmation</h1>
-        <p>Thank you for booking ${pkg.name}!</p>
-        <p>Your booking details:</p>
-        <ul>
-          <li>Date: ${new Date(date).toLocaleDateString()}</li>
-          <li>Package: ${pkg.name}</li>
-          <li>Price: ${booking.finalPrice} AED</li>
-        </ul>
-        <h2>Included Drinks:</h2>
-        <ul>
-          ${pkg.drinks.map((d: PackageDrink) => `
-            <li>${d.drink.name}: ${d.quantity === -1 ? 'Unlimited' : `${d.quantity}x`}</li>
-          `).join('')}
-        </ul>
-        <p>Please note:</p>
-        <ul>
-          <li>Valid for the booked date only</li>
-          <li>Drinks must be consumed during your visit</li>
-          <li>Non-transferable and non-refundable</li>
-        </ul>
-      `
+    if (!sessionData || sessionData.availableSlots === 0) {
+      return NextResponse.json(
+        { error: 'Session not found or fully booked' },
+        { status: 404 }
+      )
+    }
+
+    // Validate add-on availability
+    if (addOns.iceBath && sessionData.iceSlots === 0) {
+      return NextResponse.json(
+        { error: 'Ice bath slots no longer available' },
+        { status: 400 }
+      )
+    }
+    if (addOns.reflexology && sessionData.reflexSlots === 0) {
+      return NextResponse.json(
+        { error: 'Reflexology slots no longer available' },
+        { status: 400 }
+      )
+    }
+
+    let basePrice = 0
+    let drinkPrice = 0
+    let addOnPrice = 0
+
+    // Base price
+    if (!isMember) {
+      basePrice = packageType === 'BI_WEEKLY' ? 120 : 40
+    }
+
+    // Drink package price
+    if (drinkPackage === DrinkPackage.PREMIUM) {
+      drinkPrice = isMember ? 40 : 45
+    } else if (drinkPackage === DrinkPackage.BASIC) {
+      drinkPrice = isMember ? 20 : 25
+    }
+
+    // Add-ons price
+    if (addOns.iceBath) {
+      addOnPrice += isMember ? 15 : 25
+    }
+    if (addOns.reflexology) {
+      addOnPrice += isMember ? 15 : 25
+    }
+
+    const totalPrice = basePrice + drinkPrice + addOnPrice
+
+    // Start transaction
+    const booking = await prisma.$transaction(async (tx) => {
+      // Create booking
+      const booking = await tx.booking.create({
+        data: {
+          user: { connect: { id: user.id } },
+          session: { connect: { id: sessionId } },
+          status: BookingStatus.PENDING_PAYMENT,
+          drinkPackage: drinkPackage || DrinkPackage.BASIC,
+          hasIceBath: addOns.iceBath,
+          hasReflexology: addOns.reflexology,
+          basePrice,
+          drinkPrice,
+          totalPrice
+        }
+      })
+
+      // Update session
+      await tx.session.update({
+        where: { id: sessionId },
+        data: {
+          availableSlots: { decrement: 1 },
+          iceSlots: addOns.iceBath ? { decrement: 1 } : undefined,
+          reflexSlots: addOns.reflexology ? { decrement: 1 } : undefined
+        }
+      })
+
+      return booking
+    })
+
+    // TODO: Process payment with Stripe
+    // For now, just mark as confirmed
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: { status: BookingStatus.CONFIRMED }
     })
 
     return NextResponse.json(booking)
+
   } catch (error) {
-    console.error('Error creating booking:', error)
-    return new NextResponse(
-      JSON.stringify({ 
-        error: 'Failed to create booking',
-        details: error instanceof Error ? error.message : String(error)
-      }),
+    console.error('Booking error:', error)
+    return NextResponse.json(
+      { error: 'Failed to create booking' },
+      { status: 500 }
+    )
+  }
+}
+
+// Get user's bookings
+export async function GET(request: Request) {
+  const authSession = await getServerSession()
+
+  if (!authSession?.user?.email) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  try {
+    const bookings = await prisma.booking.findMany({
+      where: {
+        user: {
+          email: authSession.user.email
+        }
+      },
+      include: {
+        session: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            status: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    return NextResponse.json(bookings)
+
+  } catch (error) {
+    console.error('Error fetching bookings:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch bookings' },
       { status: 500 }
     )
   }

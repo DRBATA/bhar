@@ -1,181 +1,288 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from "@/components/ui/button"
+import { useRouter } from 'next/navigation'
+import { SelectSession } from './select-session'
+import { SelectPackage } from './select-package'
+import { DrinkPackage } from '@prisma/client'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { useToast } from '@/components/ui/use-toast'
 
-interface Package {
-  id: string
-  name: string
-  duration: string
-  slots: string
-  priceAED: number
-  priceUSD: number
-  features: string[]
+type BookingStep = 'SELECT_SESSION' | 'SELECT_PACKAGE' | 'PAYMENT'
+
+interface BookingState {
+  sessionId?: string
+  packageType?: string
+  drinkPackage: DrinkPackage | null
+  addOns: {
+    iceBath: boolean
+    reflexology: boolean
+  }
 }
 
-const packages: Package[] = [
-  {
-    id: 'day',
-    name: 'Day Pass',
-    duration: '1 day',
-    slots: '1 booking',
-    priceAED: 110,
-    priceUSD: 30,
-    features: [
-      '1 morning yacht session',
-      'Access to daily wellness activity',
-      'Regular pricing for drinks',
-      'Regular pricing for add-ons',
-      'Single booking only',
-      'Valid for selected date'
-    ]
-  },
-  {
-    id: 'week1',
-    name: '1 Week Pass',
-    duration: '7 days',
-    slots: '3 bookings',
-    priceAED: 220,
-    priceUSD: 60,
-    features: [
-      '3 morning yacht sessions',
-      'Must book all slots at once',
-      'Access to daily wellness activities',
-      'Regular pricing for drinks',
-      'Regular pricing for add-ons',
-      'Valid for 7 days'
-    ]
-  },
-  {
-    id: 'week2',
-    name: '2 Week Pass',
-    duration: '14 days',
-    slots: '6 bookings',
-    priceAED: 370,
-    priceUSD: 100,
-    features: [
-      '6 morning yacht sessions',
-      'Must book all slots at once',
-      'Access to daily wellness activities',
-      'Regular pricing for drinks',
-      'Regular pricing for add-ons',
-      'Valid for 14 days'
-    ]
-  },
-  {
-    id: 'member',
-    name: 'Monthly Subscription',
-    duration: '30 days',
-    slots: 'Up to 3 active',
-    priceAED: 550,
-    priceUSD: 150,
-    features: [
-      'Up to 3 active bookings',
-      'Book new slots as you go',
-      'Access to daily wellness activities',
-      '1/3 off all experiences',
-      'Regular pricing for drinks',
-      'Regular pricing for add-ons'
-    ]
-  }
-]
-
 export default function BookingPage() {
-  const [selectedPackage, setSelectedPackage] = useState<string | null>(null)
+  const router = useRouter()
+  const { toast } = useToast()
+  const [step, setStep] = useState<BookingStep>('SELECT_SESSION')
+  const [isLoading, setIsLoading] = useState(false)
+  const [booking, setBooking] = useState<BookingState>({
+    drinkPackage: null,
+    addOns: {
+      iceBath: false,
+      reflexology: false
+    }
+  })
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-rose-900/20">
-      <div className="absolute inset-0 bg-[url('/drinks/drinks.webp')] bg-cover bg-center opacity-10" />
-      
-      <div className="relative z-10 px-4 py-12">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-5xl font-bold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-rose-100 via-teal-100 to-rose-100 mb-4">
-              Choose Your Package
-            </h1>
-            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-              Join our exclusive wellness community with flexible booking options. 
-              Experience morning yacht sessions, wellness activities, premium drinks, 
-              and optional add-ons.
-            </p>
+  // Mock user data - in real app, get from session
+  const isMember = false
+
+  // Mock session data - in real app, fetch from API
+  const sessions = [
+    {
+      id: '1',
+      date: new Date('2024-02-01'),
+      isWeekend: false,
+      availableSlots: 50,
+      iceSlots: 5,
+      reflexSlots: 3
+    },
+    {
+      id: '2',
+      date: new Date('2024-02-02'),
+      isWeekend: false,
+      availableSlots: 75,
+      iceSlots: 9,
+      reflexSlots: 6
+    },
+    {
+      id: '3',
+      date: new Date('2024-02-03'),
+      isWeekend: true,
+      availableSlots: 100,
+      iceSlots: 9,
+      reflexSlots: 9
+    }
+  ]
+
+  const handleSessionSelect = (sessionId: string) => {
+    try {
+      setBooking(prev => ({ ...prev, sessionId }))
+      setStep('SELECT_PACKAGE')
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to select session. Please try again.',
+        variant: 'destructive'
+      })
+    }
+  }
+
+  const handlePackageSelect = (selection: {
+    packageType?: string
+    drinkPackage: DrinkPackage | null
+    addOns: {
+      iceBath: boolean
+      reflexology: boolean
+    }
+  }) => {
+    try {
+      setBooking(prev => ({
+        ...prev,
+        ...selection
+      }))
+      setStep('PAYMENT')
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to select package. Please try again.',
+        variant: 'destructive'
+      })
+    }
+  }
+
+  const handlePayment = async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(booking)
+      })
+
+      if (!response.ok) {
+        throw new Error('Booking failed')
+      }
+
+      const data = await response.json()
+      router.push(`/booking/success/${data.id}`)
+    } catch (error) {
+      console.error('Payment error:', error)
+      toast({
+        title: 'Payment Failed',
+        description: 'There was a problem processing your payment. Please try again.',
+        variant: 'destructive'
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Calculate total price
+  const calculatePrice = () => {
+    let total = 0
+    const selectedSession = sessions.find(s => s.id === booking.sessionId)
+    
+    if (!selectedSession) return { usd: 0, aed: 0 }
+
+    // Base price
+    if (isMember) {
+      // Members get sessions included
+      total = 0
+    } else if (booking.packageType === 'bi-weekly') {
+      total = 120 // $120 for 6 sessions
+    } else {
+      total = 40 // $40 for single session
+    }
+
+    // Drink package
+    if (booking.drinkPackage === DrinkPackage.PREMIUM) {
+      total += isMember ? 40 : 45
+    } else if (booking.drinkPackage === DrinkPackage.BASIC) {
+      total += isMember ? 20 : 25
+    }
+
+    // Add-ons
+    if (booking.addOns.iceBath) {
+      total += isMember ? 15 : 25
+    }
+    if (booking.addOns.reflexology) {
+      total += isMember ? 15 : 25
+    }
+
+    return {
+      usd: total,
+      aed: total * 3.67 // Convert to AED
+    }
+  }
+
+  const price = calculatePrice()
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="h-12 w-12">
+            <LoadingSpinner />
           </div>
-
-          {/* Packages Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {packages.map((pkg) => (
-              <div 
-                key={pkg.id}
-                className={`
-                  relative p-6 rounded-xl border backdrop-blur-xl shadow-xl overflow-hidden
-                  transition-all duration-300 hover:-translate-y-1
-                  ${selectedPackage === pkg.id 
-                    ? 'bg-black/40 border-rose-500/50 shadow-rose-500/20' 
-                    : 'bg-black/20 border-white/10 hover:bg-black/30 hover:border-white/20'
-                  }
-                `}
-              >
-                {/* Accent Glow */}
-                <div className="absolute -right-16 -top-16 w-32 h-32 rounded-full bg-rose-500/10 blur-2xl" />
-                
-                {/* Content */}
-                <div className="relative">
-                  <h3 className="text-xl font-bold tracking-wide text-white mb-2">
-                    {pkg.name}
-                  </h3>
-                  <div className="flex flex-col mb-4">
-                    <div className="flex items-baseline">
-                      <span className="text-4xl font-bold text-rose-300 drop-shadow-[0_0_15px_rgba(244,63,94,0.5)]">
-                        {pkg.priceAED} AED
-                      </span>
-                    </div>
-                    <span className="text-gray-400 text-sm">
-                      (${pkg.priceUSD} USD)
-                    </span>
-                  </div>
-                  <div className="text-gray-300 mb-4">
-                    <div className="font-medium">{pkg.duration}</div>
-                    <div className="font-medium">{pkg.slots}</div>
-                  </div>
-                  <ul className="space-y-3 mb-6">
-                    {pkg.features.map((feature, index) => (
-                      <li key={index} className="flex items-start space-x-2">
-                        <span className="text-rose-400 mt-1">✓</span>
-                        <span className="text-gray-300">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    onClick={() => setSelectedPackage(pkg.id)}
-                    className={`
-                      w-full font-medium tracking-wide shadow-lg transition-all duration-300
-                      ${selectedPackage === pkg.id
-                        ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/20'
-                        : 'bg-white/5 text-white hover:bg-white/10'
-                      }
-                    `}
-                  >
-                    {selectedPackage === pkg.id ? 'Selected' : 'Select Package'}
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Next Step Button */}
-          {selectedPackage && (
-            <div className="mt-12 text-center">
-              <Button
-                className="bg-rose-500 hover:bg-rose-600 text-white font-medium tracking-wide 
-                  shadow-lg shadow-rose-500/20 px-8 py-6 text-lg transition-all duration-300
-                  hover:shadow-xl hover:shadow-rose-500/30 hover:scale-[1.02] active:scale-100"
-              >
-                Continue to Select Dates
-              </Button>
-            </div>
-          )}
+          <p className="mt-4 text-gray-600">Processing your booking...</p>
         </div>
       </div>
+    )
+  }
+
+  return (
+    <div className="container mx-auto p-6">
+      {/* Progress Steps */}
+      <div className="flex justify-center mb-8">
+        <div className="flex items-center space-x-4">
+          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${
+            step === 'SELECT_SESSION' ? 'bg-blue-500 text-white' : 'bg-gray-200'
+          }`}>1</div>
+          <div className="h-1 w-16 bg-gray-200" />
+          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${
+            step === 'SELECT_PACKAGE' ? 'bg-blue-500 text-white' : 'bg-gray-200'
+          }`}>2</div>
+          <div className="h-1 w-16 bg-gray-200" />
+          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${
+            step === 'PAYMENT' ? 'bg-blue-500 text-white' : 'bg-gray-200'
+          }`}>3</div>
+        </div>
+      </div>
+
+      {/* Current Step */}
+      {step === 'SELECT_SESSION' && (
+        <SelectSession
+          sessions={sessions}
+          onSelect={handleSessionSelect}
+          isMember={isMember}
+        />
+      )}
+
+      {step === 'SELECT_PACKAGE' && booking.sessionId && (
+        <SelectPackage
+          isMember={isMember}
+          sessionDate={sessions.find(s => s.id === booking.sessionId)!.date}
+          iceSlots={sessions.find(s => s.id === booking.sessionId)!.iceSlots}
+          reflexSlots={sessions.find(s => s.id === booking.sessionId)!.reflexSlots}
+          onComplete={handlePackageSelect}
+        />
+      )}
+
+      {step === 'PAYMENT' && (
+        <div className="max-w-md mx-auto">
+          <h2 className="text-2xl font-bold mb-6">Payment</h2>
+          
+          {/* Order Summary */}
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h3 className="font-semibold mb-4">Order Summary</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>Session Package</span>
+                <span>${booking.packageType === 'bi-weekly' ? '120' : '40'}</span>
+              </div>
+              {booking.drinkPackage && (
+                <div className="flex justify-between">
+                  <span>Drink Package</span>
+                  <span>
+                    ${booking.drinkPackage === DrinkPackage.PREMIUM 
+                      ? (isMember ? '40' : '45')
+                      : (isMember ? '20' : '25')
+                    }
+                  </span>
+                </div>
+              )}
+              {booking.addOns.iceBath && (
+                <div className="flex justify-between">
+                  <span>Ice Bath</span>
+                  <span>${isMember ? '15' : '25'}</span>
+                </div>
+              )}
+              {booking.addOns.reflexology && (
+                <div className="flex justify-between">
+                  <span>Reflexology</span>
+                  <span>${isMember ? '15' : '25'}</span>
+                </div>
+              )}
+              <div className="border-t pt-2 mt-2">
+                <div className="flex justify-between font-semibold">
+                  <span>Total</span>
+                  <span>${price.usd} / {price.aed} AED</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Button */}
+          <button
+            onClick={handlePayment}
+            disabled={isLoading}
+            className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <div className="flex items-center justify-center">
+                <div className="h-4 w-4">
+                  <LoadingSpinner />
+                </div>
+                <span className="ml-2">Processing...</span>
+              </div>
+            ) : (
+              'Pay Now'
+            )}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
