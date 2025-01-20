@@ -33,5 +33,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# archive
-/archive/
+# Explicitly ignore old events route
+app/api/admin/events/
