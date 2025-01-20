@@ -4,6 +4,9 @@ const nextConfig = {
     // This will generate a new build ID on each build
     return `build-${Date.now()}`
   },
+  experimental: {
+    serverComponentsExternalPackages: ['jsonwebtoken']
+  },
   webpack: (config) => {
     config.module.rules.push({
       test: /\.(mp4|webm)$/,
