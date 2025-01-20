@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  generateBuildId: async () => {
+    // This will generate a new build ID on each build
+    return `build-${Date.now()}`
+  },
   webpack: (config) => {
     config.module.rules.push({
       test: /\.(mp4|webm)$/,
