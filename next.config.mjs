@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+const config = {
   generateBuildId: async () => {
     // This will generate a new build ID on each build
     return `build-${Date.now()}`
@@ -23,4 +23,4 @@ const nextConfig = {
   }
 }
 
-export default nextConfig
+export default config

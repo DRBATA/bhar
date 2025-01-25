@@ -9,9 +9,13 @@
 # next.js
 /.next/
 /out/
+.next
+out
 
 # production
 /build
+build
+dist
 
 # misc
 .DS_Store
@@ -33,5 +37,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Explicitly ignore old events route
+# Build caches
+.cache
+.swc
+
+# Explicitly ignore old events route and build artifacts
 app/api/admin/events/
+.turbo
+
+.vercel
